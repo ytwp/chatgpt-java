@@ -19,7 +19,7 @@ public class TextToSpeech {
      *
      * @see TtsVoice
      */
-    private String voice;
+    private String voice = TtsVoice.ALLOY.getName();
     /**
      * 输入内容
      */
@@ -31,6 +31,11 @@ public class TextToSpeech {
      */
     @JsonProperty("response_format")
     private String responseFormat;
+
+    /**
+     * The speed of the generated audio. Select a value from 0.25 to 4.0. 1.0 is the default.
+     */
+    private Double speed = 1.0;
 
 
     @Getter
