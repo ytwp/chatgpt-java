@@ -7,10 +7,13 @@ import cn.hutool.json.JSONUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unfbx.chatgpt.constant.OpenAIConst;
+import com.unfbx.chatgpt.entity.Tts.TextToSpeech;
 import com.unfbx.chatgpt.entity.billing.BillingUsage;
 import com.unfbx.chatgpt.entity.billing.CreditGrantsResponse;
 import com.unfbx.chatgpt.entity.billing.Subscription;
-import com.unfbx.chatgpt.entity.chat.*;
+import com.unfbx.chatgpt.entity.chat.ChatCompletion;
+import com.unfbx.chatgpt.entity.chat.Functions;
+import com.unfbx.chatgpt.entity.chat.Message;
 import com.unfbx.chatgpt.entity.common.OpenAiResponse;
 import com.unfbx.chatgpt.entity.completions.Completion;
 import com.unfbx.chatgpt.exception.BaseException;
@@ -33,11 +36,15 @@ import okhttp3.*;
 import okhttp3.sse.EventSource;
 import okhttp3.sse.EventSourceListener;
 import okhttp3.sse.EventSources;
+import okio.Buffer;
+import okio.BufferedSource;
 import org.jetbrains.annotations.NotNull;
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 import retrofit2.converter.jackson.JacksonConverterFactory;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
@@ -153,6 +160,64 @@ public class OpenAiStreamClient {
                 .writeTimeout(50, TimeUnit.SECONDS)
                 .readTimeout(50, TimeUnit.SECONDS)
                 .build();
+    }
+
+
+    public void textToSpeed(TextToSpeech textToSpeech, EventSourceListener eventSourceListener) {
+        try {
+            EventSource.Factory factory = EventSources.createFactory(this.okHttpClient);
+            ObjectMapper mapper = new ObjectMapper();
+            String requestBody = mapper.writeValueAsString(textToSpeech);
+            Request request = new Request.Builder()
+                    .url(this.apiHost + "v1/audio/speech")
+                    .post(RequestBody.create(MediaType.parse(ContentType.JSON.getValue()), requestBody))
+                    .build();
+            //创建事件
+            EventSource eventSource = factory.newEventSource(request, eventSourceListener);
+        } catch (JsonProcessingException e) {
+            log.error("请求参数解析异常：{}", e);
+            e.printStackTrace();
+        } catch (Exception e) {
+            log.error("请求参数解析异常：{}", e);
+            e.printStackTrace();
+        }
+    }
+
+    public void textToSpeech(TextToSpeech textToSpeech, OutputStream outputStream) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            String requestBody = mapper.writeValueAsString(textToSpeech);
+            Request request = new Request.Builder()
+                    .url(this.apiHost + "v1/audio/speech")
+                    .post(RequestBody.create(MediaType.parse(ContentType.JSON.getValue()), requestBody))
+                    .build();
+            Response response = this.okHttpClient().newCall(request).execute();
+            ResponseBody responseBody = response.body();
+            if (responseBody != null) {
+                BufferedSource source = responseBody.source();
+                Buffer buffer = new Buffer();
+                while (!source.exhausted()) {
+                    long bytesRead = source.read(buffer, 8192);
+                    outputStream.write(buffer.readByteArray(), 0, (int) bytesRead);
+                    buffer.clear();
+                }
+            }
+        } catch (JsonProcessingException e) {
+            log.error("请求参数解析异常：{}", e);
+            e.printStackTrace();
+        } catch (IOException e) {
+            // 流被关闭
+            log.error("textToSpeech，输出流被关闭！");
+        } catch (Exception e) {
+            log.error("请求参数解析异常：{}", e);
+            e.printStackTrace();
+        } finally {
+            try {
+                outputStream.close();
+            } catch (IOException e) {
+                log.error("textToSpeech，关闭输出流失败！");
+            }
+        }
     }
 
     /**
@@ -364,8 +429,8 @@ public class OpenAiStreamClient {
 //        log.info("调用查询余额请求返回值：{}", bodyStr);
         if (!response.isSuccessful()) {
             if (response.code() == CommonError.OPENAI_AUTHENTICATION_ERROR.code()
-                    || response.code() == CommonError.OPENAI_LIMIT_ERROR.code()
-                    || response.code() == CommonError.OPENAI_SERVER_ERROR.code()) {
+                || response.code() == CommonError.OPENAI_LIMIT_ERROR.code()
+                || response.code() == CommonError.OPENAI_SERVER_ERROR.code()) {
                 OpenAiResponse openAiResponse = JSONUtil.toBean(bodyStr, OpenAiResponse.class);
                 log.error(openAiResponse.getError().getMessage());
                 throw new BaseException(openAiResponse.getError().getMessage());

@@ -37,13 +37,17 @@ public class TikTokensUtil {
         }
         modelMap.put(ChatCompletion.Model.GPT_3_5_TURBO_0301.getName(), registry.getEncodingForModel(ModelType.GPT_3_5_TURBO));
         modelMap.put(ChatCompletion.Model.GPT_3_5_TURBO_0613.getName(), registry.getEncodingForModel(ModelType.GPT_3_5_TURBO));
+        modelMap.put(ChatCompletion.Model.GPT_3_5_TURBO_1106.getName(), registry.getEncodingForModel(ModelType.GPT_3_5_TURBO));
         modelMap.put(ChatCompletion.Model.GPT_3_5_TURBO_16K.getName(), registry.getEncodingForModel(ModelType.GPT_3_5_TURBO));
         modelMap.put(ChatCompletion.Model.GPT_3_5_TURBO_16K_0613.getName(), registry.getEncodingForModel(ModelType.GPT_3_5_TURBO));
+        modelMap.put(ChatCompletion.Model.CLAUDE_3_HAIKU_20240307.getName(), registry.getEncodingForModel(ModelType.GPT_3_5_TURBO));
         modelMap.put(ChatCompletion.Model.GPT_4_32K.getName(), registry.getEncodingForModel(ModelType.GPT_4));
         modelMap.put(ChatCompletion.Model.GPT_4_32K_0314.getName(), registry.getEncodingForModel(ModelType.GPT_4));
         modelMap.put(ChatCompletion.Model.GPT_4_0314.getName(), registry.getEncodingForModel(ModelType.GPT_4));
         modelMap.put(ChatCompletion.Model.GPT_4_0613.getName(), registry.getEncodingForModel(ModelType.GPT_4));
         modelMap.put(ChatCompletion.Model.GPT_4_32K_0613.getName(), registry.getEncodingForModel(ModelType.GPT_4));
+        modelMap.put(ChatCompletion.Model.GPT_4_TURBO_PREVIEW.getName(), registry.getEncodingForModel(ModelType.GPT_4));
+        modelMap.put(ChatCompletion.Model.GPT_4O.getName(), registry.getEncodingForModel(ModelType.GPT_4));
     }
 
     /**
@@ -183,28 +187,32 @@ public class TikTokensUtil {
         int tokensPerMessage = 0;
         int tokensPerName = 0;
         if (modelName.equals(ChatCompletion.Model.GPT_3_5_TURBO_0613.getName())
-                || modelName.equals(ChatCompletion.Model.GPT_3_5_TURBO_16K_0613.getName())
-                || modelName.equals(ChatCompletion.Model.GPT_4_0314.getName())
-                || modelName.equals(ChatCompletion.Model.GPT_4_32K_0314.getName())
-                || modelName.equals(ChatCompletion.Model.GPT_4_0613.getName())
-                || modelName.equals(ChatCompletion.Model.GPT_4_32K_0613.getName())
+            || modelName.equals(ChatCompletion.Model.GPT_3_5_TURBO_1106.getName())
+            || modelName.equals(ChatCompletion.Model.GPT_3_5_TURBO_16K_0613.getName())
+            || modelName.equals(ChatCompletion.Model.GPT_4_0314.getName())
+            || modelName.equals(ChatCompletion.Model.GPT_4_32K_0314.getName())
+            || modelName.equals(ChatCompletion.Model.GPT_4_0613.getName())
+            || modelName.equals(ChatCompletion.Model.GPT_4_32K_0613.getName())
+            || modelName.equals(ChatCompletion.Model.GPT_4_TURBO_PREVIEW.getName())
+            || modelName.equals(ChatCompletion.Model.GPT_4O.getName())
+            || modelName.equals(ChatCompletion.Model.CLAUDE_3_HAIKU_20240307.getName())
         ) {
             tokensPerMessage = 3;
             tokensPerName = 1;
-        }else if(modelName.equals(ChatCompletion.Model.GPT_3_5_TURBO_0301.getName())){
+        } else if (modelName.equals(ChatCompletion.Model.GPT_3_5_TURBO_0301.getName())) {
             tokensPerMessage = 4;
             tokensPerName = -1;
-        }else if(modelName.contains(ChatCompletion.Model.GPT_3_5_TURBO.getName())){
+        } else if (modelName.contains(ChatCompletion.Model.GPT_3_5_TURBO.getName())) {
             //"gpt-3.5-turbo" in model:
             log.warn("Warning: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613.");
             tokensPerMessage = 3;
             tokensPerName = 1;
-        }else if(modelName.contains(ChatCompletion.Model.GPT_4.getName())){
+        } else if (modelName.contains(ChatCompletion.Model.GPT_4.getName())) {
             log.warn("Warning: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.");
             tokensPerMessage = 3;
             tokensPerName = 1;
-        }else {
-            log.warn("不支持的model {}. See https://github.com/openai/openai-python/blob/main/chatml.md 更多信息.",modelName);
+        } else {
+            log.warn("不支持的model {}. See https://github.com/openai/openai-python/blob/main/chatml.md 更多信息.", modelName);
         }
         int sum = 0;
         for (Message msg : messages) {
@@ -244,18 +252,22 @@ public class TikTokensUtil {
     public static ModelType getModelTypeByName(String name) {
         if (
                 ChatCompletion.Model.GPT_3_5_TURBO_0301.getName().equals(name) ||
-                        ChatCompletion.Model.GPT_3_5_TURBO_0613.getName().equals(name) ||
-                        ChatCompletion.Model.GPT_3_5_TURBO_16K.getName().equals(name) ||
-                        ChatCompletion.Model.GPT_3_5_TURBO_16K_0613.getName().equals(name)
+                ChatCompletion.Model.GPT_3_5_TURBO_0613.getName().equals(name) ||
+                ChatCompletion.Model.GPT_3_5_TURBO_1106.getName().equals(name) ||
+                ChatCompletion.Model.GPT_3_5_TURBO_16K.getName().equals(name) ||
+                ChatCompletion.Model.GPT_3_5_TURBO_16K_0613.getName().equals(name) ||
+                ChatCompletion.Model.CLAUDE_3_HAIKU_20240307.getName().equals(name)
         ) {
             return ModelType.GPT_3_5_TURBO;
         }
         if (ChatCompletion.Model.GPT_4.getName().equals(name)
-                || ChatCompletion.Model.GPT_4_32K.getName().equals(name)
-                || ChatCompletion.Model.GPT_4_32K_0314.getName().equals(name)
-                || ChatCompletion.Model.GPT_4_0314.getName().equals(name)
-                || ChatCompletion.Model.GPT_4_0613.getName().equals(name)
-                || ChatCompletion.Model.GPT_4_32K_0613.getName().equals(name)
+            || ChatCompletion.Model.GPT_4_32K.getName().equals(name)
+            || ChatCompletion.Model.GPT_4_32K_0314.getName().equals(name)
+            || ChatCompletion.Model.GPT_4_0314.getName().equals(name)
+            || ChatCompletion.Model.GPT_4_0613.getName().equals(name)
+            || ChatCompletion.Model.GPT_4_32K_0613.getName().equals(name)
+            || ChatCompletion.Model.GPT_4_TURBO_PREVIEW.getName().equals(name)
+            || ChatCompletion.Model.GPT_4O.getName().equals(name)
         ) {
             return ModelType.GPT_4;
         }

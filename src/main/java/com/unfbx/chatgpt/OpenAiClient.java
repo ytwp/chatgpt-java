@@ -2,9 +2,9 @@ package com.unfbx.chatgpt;
 
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
-
 import cn.hutool.json.JSONUtil;
 import com.unfbx.chatgpt.constant.OpenAIConst;
+import com.unfbx.chatgpt.entity.Tts.TextToSpeech;
 import com.unfbx.chatgpt.entity.billing.BillingUsage;
 import com.unfbx.chatgpt.entity.billing.CreditGrantsResponse;
 import com.unfbx.chatgpt.entity.billing.Subscription;
@@ -24,6 +24,10 @@ import com.unfbx.chatgpt.entity.fineTune.Event;
 import com.unfbx.chatgpt.entity.fineTune.FineTune;
 import com.unfbx.chatgpt.entity.fineTune.FineTuneDeleteResponse;
 import com.unfbx.chatgpt.entity.fineTune.FineTuneResponse;
+import com.unfbx.chatgpt.entity.fineTune.job.FineTuneJob;
+import com.unfbx.chatgpt.entity.fineTune.job.FineTuneJobEvent;
+import com.unfbx.chatgpt.entity.fineTune.job.FineTuneJobListResponse;
+import com.unfbx.chatgpt.entity.fineTune.job.FineTuneJobResponse;
 import com.unfbx.chatgpt.entity.images.*;
 import com.unfbx.chatgpt.entity.models.Model;
 import com.unfbx.chatgpt.entity.models.ModelResponse;
@@ -36,20 +40,27 @@ import com.unfbx.chatgpt.exception.BaseException;
 import com.unfbx.chatgpt.exception.CommonError;
 import com.unfbx.chatgpt.function.KeyRandomStrategy;
 import com.unfbx.chatgpt.function.KeyStrategyFunction;
+import com.unfbx.chatgpt.interceptor.DefaultOpenAiAuthInterceptor;
 import com.unfbx.chatgpt.interceptor.DynamicKeyOpenAiAuthInterceptor;
 import com.unfbx.chatgpt.interceptor.OpenAiAuthInterceptor;
-import com.unfbx.chatgpt.interceptor.DefaultOpenAiAuthInterceptor;
 import com.unfbx.chatgpt.plugin.PluginAbstract;
 import com.unfbx.chatgpt.plugin.PluginParam;
 import io.reactivex.Single;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
+import okio.Buffer;
+import okio.BufferedSource;
 import org.jetbrains.annotations.NotNull;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 import retrofit2.converter.jackson.JacksonConverterFactory;
 
+import java.io.OutputStream;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -231,6 +242,7 @@ public class OpenAiClient {
      * @param edit 图片对象
      * @return EditResponse
      */
+    @Deprecated
     public EditResponse edit(Edit edit) {
         Single<EditResponse> edits = this.openAiApi.edits(edit);
         return edits.blockingGet();
@@ -550,7 +562,9 @@ public class OpenAiClient {
      *
      * @param fineTune 微调作业id
      * @return FineTuneResponse
+     * @see #fineTuneJob(FineTuneJob fineTuneJob)
      */
+    @Deprecated
     public FineTuneResponse fineTune(FineTune fineTune) {
         Single<FineTuneResponse> fineTuneResponse = this.openAiApi.fineTune(fineTune);
         return fineTuneResponse.blockingGet();
@@ -561,7 +575,9 @@ public class OpenAiClient {
      *
      * @param trainingFileId 文件id，文件上传返回的id
      * @return FineTuneResponse
+     * @see #fineTuneJob(String trainingFileId)
      */
+    @Deprecated
     public FineTuneResponse fineTune(String trainingFileId) {
         FineTune fineTune = FineTune.builder().trainingFile(trainingFileId).build();
         return this.fineTune(fineTune);
@@ -571,7 +587,9 @@ public class OpenAiClient {
      * 微调模型列表
      *
      * @return FineTuneResponse list
+     * @see #fineTuneJobs()
      */
+    @Deprecated
     public List<FineTuneResponse> fineTunes() {
         Single<OpenAiResponse<FineTuneResponse>> fineTunes = this.openAiApi.fineTunes();
         return fineTunes.blockingGet().getData();
@@ -582,7 +600,9 @@ public class OpenAiClient {
      *
      * @param fineTuneId 微调作业id
      * @return FineTuneResponse
+     * @see #retrieveFineTuneJob(String fineTuneJobId)
      */
+    @Deprecated
     public FineTuneResponse retrieveFineTune(String fineTuneId) {
         Single<FineTuneResponse> fineTune = this.openAiApi.retrieveFineTune(fineTuneId);
         return fineTune.blockingGet();
@@ -593,7 +613,9 @@ public class OpenAiClient {
      *
      * @param fineTuneId 主键
      * @return FineTuneResponse
+     * @see #cancelFineTuneJob(String fineTuneJobId)
      */
+    @Deprecated
     public FineTuneResponse cancelFineTune(String fineTuneId) {
         Single<FineTuneResponse> fineTune = this.openAiApi.cancelFineTune(fineTuneId);
         return fineTune.blockingGet();
@@ -604,7 +626,9 @@ public class OpenAiClient {
      *
      * @param fineTuneId 微调作业id
      * @return Event List
+     * @see #fineTuneJobEvents(String fineTuneJobId)
      */
+    @Deprecated
     public List<Event> fineTuneEvents(String fineTuneId) {
         Single<OpenAiResponse<Event>> events = this.openAiApi.fineTuneEvents(fineTuneId);
         return events.blockingGet().getData();
@@ -795,7 +819,36 @@ public class OpenAiClient {
     public WhisperResponse speechToTextTranscriptions(java.io.File file) {
         Transcriptions transcriptions = Transcriptions.builder().build();
         return this.speechToTextTranscriptions(file, transcriptions);
+    }
 
+    public WhisperResponse speechToTextTranscriptions(byte[] content) {
+        Transcriptions transcriptions = Transcriptions.builder().build();
+        return this.speechToTextTranscriptions(content, transcriptions);
+    }
+
+    public WhisperResponse speechToTextTranscriptions(byte[] content, Transcriptions transcriptions) {
+        //文件
+        RequestBody fileBody = RequestBody.create(MediaType.parse("multipart/form-data"), content);
+        MultipartBody.Part multipartBody = MultipartBody.Part.createFormData("file", "xxx.mp3", fileBody);
+        //自定义参数
+        Map<String, RequestBody> requestBodyMap = new HashMap<>();
+        if (StrUtil.isNotBlank(transcriptions.getLanguage())) {
+            requestBodyMap.put(Transcriptions.Fields.language, RequestBody.create(MediaType.parse("multipart/form-data"), transcriptions.getLanguage()));
+        }
+        if (StrUtil.isNotBlank(transcriptions.getModel())) {
+            requestBodyMap.put(Transcriptions.Fields.model, RequestBody.create(MediaType.parse("multipart/form-data"), transcriptions.getModel()));
+        }
+        if (StrUtil.isNotBlank(transcriptions.getPrompt())) {
+            requestBodyMap.put(Transcriptions.Fields.prompt, RequestBody.create(MediaType.parse("multipart/form-data"), transcriptions.getPrompt()));
+        }
+        if (StrUtil.isNotBlank(transcriptions.getResponseFormat())) {
+            requestBodyMap.put(Transcriptions.Fields.responseFormat, RequestBody.create(MediaType.parse("multipart/form-data"), transcriptions.getResponseFormat()));
+        }
+        if (Objects.nonNull(transcriptions.getTemperature())) {
+            requestBodyMap.put(Transcriptions.Fields.temperature, RequestBody.create(MediaType.parse("multipart/form-data"), String.valueOf(transcriptions.getTemperature())));
+        }
+        Single<WhisperResponse> whisperResponse = this.openAiApi.speechToTextTranscriptions(multipartBody, requestBodyMap);
+        return whisperResponse.blockingGet();
     }
 
 
@@ -811,7 +864,7 @@ public class OpenAiClient {
         RequestBody fileBody = RequestBody.create(MediaType.parse("multipart/form-data"), file);
         MultipartBody.Part multipartBody = MultipartBody.Part.createFormData("file", file.getName(), fileBody);
         //自定义参数
-        Map<String, RequestBody> requestBodyMap = new HashMap<>(5,1L);
+        Map<String, RequestBody> requestBodyMap = new HashMap<>(5, 1L);
 
         if (StrUtil.isNotBlank(translations.getModel())) {
             requestBodyMap.put(Translations.Fields.model, RequestBody.create(MediaType.parse("multipart/form-data"), translations.getModel()));
@@ -886,6 +939,102 @@ public class OpenAiClient {
         return billingUsage.blockingGet();
     }
 
+    /**
+     * 创建微调job
+     *
+     * @param fineTuneJob 微调job
+     * @return FineTuneJobResponse
+     * @since 1.1.2
+     */
+    public FineTuneJobResponse fineTuneJob(FineTuneJob fineTuneJob) {
+        Single<FineTuneJobResponse> fineTuneJobResponse = this.openAiApi.fineTuneJob(fineTuneJob);
+        return fineTuneJobResponse.blockingGet();
+    }
+
+    /**
+     * 创建微调job
+     *
+     * @param trainingFileId 文件id，文件上传返回的id
+     * @return FineTuneJobResponse
+     * @since 1.1.2
+     */
+    public FineTuneJobResponse fineTuneJob(String trainingFileId) {
+        FineTuneJob fineTuneJob = FineTuneJob.builder().trainingFile(trainingFileId).build();
+        return this.fineTuneJob(fineTuneJob);
+    }
+
+    /**
+     * 微调job列表
+     *
+     * @return FineTuneJobListResponse #FineTuneJobResponse
+     * @since 1.1.2
+     */
+    public FineTuneJobListResponse<FineTuneJobResponse> fineTuneJobs() {
+        Single<FineTuneJobListResponse<FineTuneJobResponse>> fineTuneJobs = this.openAiApi.fineTuneJobs();
+        return fineTuneJobs.blockingGet();
+    }
+
+    /**
+     * 检索微调job
+     *
+     * @param fineTuneJobId 微调job id
+     * @return FineTuneResponse
+     * @since 1.1.2
+     */
+    public FineTuneJobResponse retrieveFineTuneJob(String fineTuneJobId) {
+        Single<FineTuneJobResponse> fineTuneJob = this.openAiApi.retrieveFineTuneJob(fineTuneJobId);
+        return fineTuneJob.blockingGet();
+    }
+
+    /**
+     * 取消微调job
+     *
+     * @param fineTuneJobId 微调job id
+     * @return FineTuneJobResponse
+     * @since 1.1.2
+     */
+    public FineTuneJobResponse cancelFineTuneJob(String fineTuneJobId) {
+        Single<FineTuneJobResponse> fineTuneJob = this.openAiApi.cancelFineTuneJob(fineTuneJobId);
+        return fineTuneJob.blockingGet();
+    }
+
+    /**
+     * 微调作业事件列表
+     *
+     * @param fineTuneJobId 微调job id
+     * @return Event List
+     * @since 1.1.2
+     */
+    public FineTuneJobListResponse<FineTuneJobEvent> fineTuneJobEvents(String fineTuneJobId) {
+        Single<FineTuneJobListResponse<FineTuneJobEvent>> events = this.openAiApi.fineTuneJobEvents(fineTuneJobId);
+        return events.blockingGet();
+    }
+
+
+    public void textToSpeech(TextToSpeech textToSpeech, OutputStream outputStream) {
+        Call<ResponseBody> responseBody = this.openAiApi.textToSpeech(textToSpeech);
+        responseBody.enqueue(new Callback<ResponseBody>() {
+            @SneakyThrows
+            @Override
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                System.out.println("--------------------->" + response.body());
+                okhttp3.ResponseBody responseBody = response.body();
+                BufferedSource source = responseBody.source();
+                Buffer buffer = new Buffer();
+                while (!source.exhausted()) {
+                    long bytesRead = source.read(buffer, 8192);
+                    outputStream.write(buffer.readByteArray(), 0, (int) bytesRead);
+                    buffer.clear();
+                }
+                outputStream.close();
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+
+            }
+        });
+    }
 
     public static final class Builder {
         /**
