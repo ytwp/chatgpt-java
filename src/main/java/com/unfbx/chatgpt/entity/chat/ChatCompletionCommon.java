@@ -214,6 +214,7 @@ public class ChatCompletionCommon implements Serializable {
         GPT_4_VISION_PREVIEW("gpt-4-vision-preview"),
         GPT_4_TURBO_PREVIEW("gpt-4-turbo-preview"),
         GPT_4O("gpt-4o"),
+        GPT_4O_MINI("gpt-4o-mini"),
         CLAUDE_3_HAIKU_20240307("claude-3-haiku-20240307"),
         ;
         private final String name;

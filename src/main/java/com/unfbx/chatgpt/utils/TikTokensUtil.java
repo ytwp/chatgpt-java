@@ -7,6 +7,7 @@ import com.knuddels.jtokkit.api.EncodingRegistry;
 import com.knuddels.jtokkit.api.EncodingType;
 import com.knuddels.jtokkit.api.ModelType;
 import com.unfbx.chatgpt.entity.chat.ChatCompletion;
+import com.unfbx.chatgpt.entity.chat.ChatCompletionCommon;
 import com.unfbx.chatgpt.entity.chat.FunctionCall;
 import com.unfbx.chatgpt.entity.chat.Message;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +49,7 @@ public class TikTokensUtil {
         modelMap.put(ChatCompletion.Model.GPT_4_32K_0613.getName(), registry.getEncodingForModel(ModelType.GPT_4));
         modelMap.put(ChatCompletion.Model.GPT_4_TURBO_PREVIEW.getName(), registry.getEncodingForModel(ModelType.GPT_4));
         modelMap.put(ChatCompletion.Model.GPT_4O.getName(), registry.getEncodingForModel(ModelType.GPT_4));
+        modelMap.put(ChatCompletion.Model.GPT_4O_MINI.getName(), registry.getEncodingForModel(ModelType.GPT_4));
     }
 
     /**
@@ -195,6 +197,7 @@ public class TikTokensUtil {
             || modelName.equals(ChatCompletion.Model.GPT_4_32K_0613.getName())
             || modelName.equals(ChatCompletion.Model.GPT_4_TURBO_PREVIEW.getName())
             || modelName.equals(ChatCompletion.Model.GPT_4O.getName())
+            || modelName.equals(ChatCompletion.Model.GPT_4O_MINI.getName())
             || modelName.equals(ChatCompletion.Model.CLAUDE_3_HAIKU_20240307.getName())
         ) {
             tokensPerMessage = 3;
@@ -268,6 +271,7 @@ public class TikTokensUtil {
             || ChatCompletion.Model.GPT_4_32K_0613.getName().equals(name)
             || ChatCompletion.Model.GPT_4_TURBO_PREVIEW.getName().equals(name)
             || ChatCompletion.Model.GPT_4O.getName().equals(name)
+            || ChatCompletion.Model.GPT_4O_MINI.getName().equals(name)
         ) {
             return ModelType.GPT_4;
         }
